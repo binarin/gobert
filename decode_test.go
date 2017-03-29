@@ -2,31 +2,31 @@ package bert
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
-	"fmt"
 )
 
 func ExampleDecode() {
-    i, err := Decode([]byte{131, 97, 42})
-    if err != nil {
-	    fmt.Println(err)
-    }
-    fmt.Printf("%#v\n", i)
-    s, err := Decode([]byte{131, 107, 0, 3, 102, 111, 111})
-    if err != nil {
-	    fmt.Println(err)
-    }
-    fmt.Printf("%#v\n", s)
-    a, err := Decode([]byte{131, 104, 1, 100, 0, 3, 102, 111, 111})
-    if err != nil {
-	    fmt.Println(err)
-    }
-    fmt.Printf("%#v\n", a)
-    // Output:
-    // 42
-    // "foo"
-    // []bert.Term{"foo"}
+	i, err := Decode([]byte{131, 97, 42})
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf("%#v\n", i)
+	s, err := Decode([]byte{131, 107, 0, 3, 102, 111, 111})
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf("%#v\n", s)
+	a, err := Decode([]byte{131, 104, 1, 100, 0, 3, 102, 111, 111})
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf("%#v\n", a)
+	// Output:
+	// 42
+	// "foo"
+	// []bert.Term{"foo"}
 }
 
 func TestDecode(t *testing.T) {
@@ -79,6 +79,10 @@ func TestDecode(t *testing.T) {
 		48, 101, 43, 48, 48, 0, 0, 0, 0,
 	},
 		float32(-3.14159))
+
+	// IEEE binary float
+	assertDecode(t, []byte{131, 70, 0, 0, 0, 0, 0, 0, 0, 0}, float64(0))
+	assertDecode(t, []byte{131, 70, 64, 9, 33, 251, 84, 68, 45, 24}, float64(3.141592653589793))
 
 	// Atom
 	assertDecode(t, []byte{131, 100, 0, 3, 102, 111, 111},

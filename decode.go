@@ -4,14 +4,25 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"reflect"
 	"strconv"
+	"unsafe"
 )
 
 var ErrBadMagic error = errors.New("bad magic")
-var ErrUnknownType error = errors.New("unknown type")
+
+type ErrUnknownType struct {
+	tag  int
+	desc string
+}
+
+func (e ErrUnknownType) Error() string {
+	return fmt.Sprintf("unknown type %d (%s)", e.tag, e.desc)
+}
 
 func read1(r io.Reader) (int, error) {
 	bits, err := ioutil.ReadAll(io.LimitReader(r, 1))
@@ -47,7 +58,30 @@ func readSmallInt(r io.Reader) (int, error) {
 	return read1(r)
 }
 
-func readInt(r io.Reader) (int, error) { return read4(r) }
+// INTEGER_EXT - Signed 32-bit integer in big-endian format.
+func readInt(r io.Reader) (int, error) {
+	bits, err := ioutil.ReadAll(io.LimitReader(r, 4))
+
+	if err != nil {
+		return 0, err
+	}
+
+	ui32 := binary.BigEndian.Uint32(bits)
+	i32 := *(*int32)(unsafe.Pointer(&ui32))
+
+	return int(i32), nil
+}
+
+// NEW_FLOAT_EXT - A float is stored as 8 bytes in big-endian IEEE format.
+func readNewFloat(r io.Reader) (float64, error) {
+	bytes, err := ioutil.ReadAll(io.LimitReader(r, 8))
+	if err != nil {
+		return 0, err
+	}
+	bits := binary.BigEndian.Uint64(bytes)
+	float := math.Float64frombits(bits)
+	return float, nil
+}
 
 func readFloat(r io.Reader) (float32, error) {
 	bits, err := ioutil.ReadAll(io.LimitReader(r, 31))
@@ -98,15 +132,6 @@ func readSmallTuple(r io.Reader) (Term, error) {
 	}
 
 	return tuple, nil
-}
-
-func readNil(r io.Reader) ([]Term, error) {
-	_, err := ioutil.ReadAll(io.LimitReader(r, 1))
-	if err != nil {
-		return nil, err
-	}
-	list := make([]Term, 0)
-	return list, nil
 }
 
 func readString(r io.Reader) (string, error) {
@@ -192,9 +217,11 @@ func readTag(r io.Reader) (Term, error) {
 	case IntTag:
 		return readInt(r)
 	case SmallBignumTag:
-		return nil, ErrUnknownType
+		return nil, ErrUnknownType{tag, "SmallBignum"}
 	case LargeBignumTag:
-		return nil, ErrUnknownType
+		return nil, ErrUnknownType{tag, "LargeBignum"}
+	case NewFloatTag:
+		return readNewFloat(r)
 	case FloatTag:
 		return readFloat(r)
 	case AtomTag:
@@ -202,9 +229,9 @@ func readTag(r io.Reader) (Term, error) {
 	case SmallTupleTag:
 		return readSmallTuple(r)
 	case LargeTupleTag:
-		return nil, ErrUnknownType
+		return nil, ErrUnknownType{tag, "LargeTuple"}
 	case NilTag:
-		return readNil(r)
+		return make([]Term, 0), nil
 	case StringTag:
 		return readString(r)
 	case ListTag:
@@ -213,7 +240,7 @@ func readTag(r io.Reader) (Term, error) {
 		return readBin(r)
 	}
 
-	return nil, ErrUnknownType
+	return nil, ErrUnknownType{tag, "unsupported"}
 }
 
 // DecodeFrom decodes a Term from r and returns it or an error.

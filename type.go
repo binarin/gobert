@@ -7,6 +7,7 @@ const (
 	SmallBignumTag = 110
 	LargeBignumTag = 111
 	FloatTag       = 99
+	NewFloatTag    = 70
 	AtomTag        = 100
 	SmallTupleTag  = 104
 	LargeTupleTag  = 105

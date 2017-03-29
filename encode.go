@@ -8,6 +8,14 @@ import (
 	"reflect"
 )
 
+type ErrNotEncodable struct {
+	kindName string
+}
+
+func (e ErrNotEncodable) Error() string {
+	return fmt.Sprintf("can't encode data of kind %s", e.kindName)
+}
+
 func write1(w io.Writer, ui8 uint8) { w.Write([]byte{ui8}) }
 
 func write2(w io.Writer, ui16 uint16) {
@@ -105,7 +113,7 @@ func writeTag(w io.Writer, val reflect.Value) (err error) {
 		if !reflect.Indirect(val).IsValid() {
 			writeNil(w)
 		} else {
-			err = ErrUnknownType
+			err = ErrNotEncodable{v.Kind().String()}
 		}
 	}
 
